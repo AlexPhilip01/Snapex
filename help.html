@@ -58,7 +58,7 @@
   <p>Dates use the EXIF format <code>YYYY:MM:DD HH:MM:SS</code>, for example <code>2026:03:14 06:42:10</code>. EXIF text fields only hold plain ASCII characters, so accented letters are replaced with "?".</p>
 
   <h3>Location map</h3>
-  <p>When a photo has GPS coordinates, SnapEx plots them on an OpenStreetMap map and shows latitude, longitude and altitude. The map tiles are loaded from OpenStreetMap, which receives the rough area being viewed but never the photo itself.</p>
+  <p>When a photo has GPS coordinates, SnapEx shows them on a Google Map (switch between Map and Satellite) with latitude, longitude and altitude. To draw the map, your browser sends those coordinates to Google, but never the photo itself.</p>
 
   <h3>Embedded thumbnail</h3>
   <p>Many cameras and phones store a small preview image inside the photo. SnapEx shows it so you can check that it matches. This matters because some editing apps crop or retouch the main image but leave the old thumbnail behind. For JPEG files you can download the thumbnail, rebuild it from the current photo, or remove it.</p>
@@ -82,7 +82,7 @@
   <h3>"No metadata in this file"</h3>
   <p>Many images genuinely have none. Screenshots, images saved from social networks and messaging apps, and pictures exported "for web" are usually stripped before you get them. Try the original file straight from the camera or phone instead.</p>
   <h3>The map doesn't appear</h3>
-  <p>The photo needs GPS data; check the Location group for coordinates. If they are there but the map is blank, an ad blocker or network filter may be blocking OpenStreetMap. The <em>Open in OpenStreetMap</em> link still works.</p>
+  <p>The photo needs GPS data; check the Location group for coordinates. If they are there but the map is blank, an ad blocker or network filter may be blocking Google Maps. The <em>Open in Google Maps</em> link still works.</p>
   <h3>Load from URL fails</h3>
   <p>Many websites don't allow other sites to read their images directly. Save the image to your device and open it with Upload file instead.</p>
   <h3>Edit metadata is greyed out</h3>

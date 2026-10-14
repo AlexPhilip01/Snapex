@@ -1,5 +1,5 @@
 /* SnapEx — reads, edits and strips photo metadata entirely in the browser.
-   Libraries: exifr (reading), piexifjs (JPEG EXIF writing), Leaflet (map). */
+   Libraries: exifr (reading), piexifjs (JPEG EXIF writing), Google Maps embed (map). */
 (() => {
 'use strict';
 const $ = s => document.querySelector(s);
@@ -16,7 +16,6 @@ const EXT = {jpeg:'jpg', png:'png', webp:'webp'};
 
 let st = {};          // the photo currently shown
 let original = null;  // the photo as first opened
-let map = null, marker = null;
 
 /* ---------------- helpers ---------------- */
 const toBin = u8 => { let s=''; for (let i=0;i<u8.length;i+=0x8000) s += String.fromCharCode.apply(null, u8.subarray(i,i+0x8000)); return s; };
@@ -198,25 +197,33 @@ function renderRisks(p){
   }
 }
 
-/* ---------------- map ---------------- */
+/* ---------------- map (Google Maps embed, no API key) ---------------- */
+let mapType = 'm';
+function drawMap(){
+  if (!st.gps) return;
+  const {latitude: lat, longitude: lon} = st.gps;
+  const box = $('#map'); box.textContent = '';
+  const f = document.createElement('iframe');
+  f.title = 'Google Map showing where the photo was taken';
+  f.loading = 'lazy'; f.referrerPolicy = 'no-referrer';
+  f.src = `https://maps.google.com/maps?q=${lat},${lon}&z=15&t=${mapType}&hl=en&output=embed`;
+  box.append(f);
+  document.querySelectorAll('[data-maptype]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.maptype === mapType)));
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-maptype]'); if (!b) return;
+  mapType = b.dataset.maptype; drawMap();
+});
 function renderMap(){
   const panel = $('#mapPanel');
-  if (!st.gps) { panel.hidden = true; return; }
+  if (!st.gps) { panel.hidden = true; $('#map').textContent = ''; return; }
   panel.hidden = false;
   const {latitude: lat, longitude: lon} = st.gps;
   const alt = st.parsed?.gps?.GPSAltitude;
   const c = $('#coords'); c.textContent = '';
   for (const s of [`Lat ${round(lat,6)}`, `Lon ${round(lon,6)}`, alt!=null ? `Altitude ${round(alt,1)} m` : null].filter(Boolean)){ const e=document.createElement('span'); e.textContent=s; c.append(e); }
-  $('#osmLink').href = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=15/${lat}/${lon}`;
-  if (typeof L === 'undefined') { $('#map').innerHTML = '<p class="noprev">The map could not load. Use the OpenStreetMap link instead.</p>'; return; }
-  if (!map){
-    map = L.map('map', {scrollWheelZoom: false});
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
-    marker = L.circleMarker([lat, lon], {radius: 9, color: '#d6a84e', weight: 3, fillColor: '#e4bc6a', fillOpacity: .9}).addTo(map);
-  }
-  marker.setLatLng([lat, lon]);
-  map.setView([lat, lon], 13);
-  setTimeout(() => map.invalidateSize(), 50);
+  $('#gmapsLink').href = `https://www.google.com/maps?q=${lat},${lon}`;
+  drawMap();
 }
 
 /* ---------------- thumbnail ---------------- */
