@@ -212,7 +212,7 @@ function renderMap(){
   if (!map){
     map = L.map('map', {scrollWheelZoom: false});
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
-    marker = L.circleMarker([lat, lon], {radius: 9, color: '#1B5A8C', weight: 3, fillColor: '#73B4E9', fillOpacity: .9}).addTo(map);
+    marker = L.circleMarker([lat, lon], {radius: 9, color: '#d6a84e', weight: 3, fillColor: '#e4bc6a', fillOpacity: .9}).addTo(map);
   }
   marker.setLatLng([lat, lon]);
   map.setView([lat, lon], 13);

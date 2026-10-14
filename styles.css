@@ -1,24 +1,16 @@
-/* SnapEx — shared styles for every page.
-   Palette: cool lab-grey paper, cyanotype blue accent, camera-LCD readout. */
+/* SnapEx — shared styles. Shield InfoSec theme: ink background, gold signal accent, IBM Plex. */
 :root{
-  --paper:#EEF2F5; --surface:#FFFFFF; --sunk:#E3E9EE; --ink:#13202C; --muted:#566676; --line:#D2DAE2;
-  --accent:#1B5A8C; --accent-ink:#FFFFFF; --accent-soft:#DCEAF6;
-  --warn:#9A4A08; --warn-bg:#FCEEDD; --ok:#1C6E48; --ok-bg:#DFF2E8;
-  --high:#A32222; --high-bg:#FBE4E4; --med:#9A4A08; --med-bg:#FCEEDD; --low:#3E5568; --low-bg:#E6ECF1;
-  --lcd:#13202C; --lcd-ink:#E9F1F7; --lcd-dim:#8EA3B5;
-  --f-display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --paper:#0f1012; --surface:#1d2024; --sunk:#16181b; --ink:#f2efe8; --muted:#c2bdb2; --line:#2a2d32;
+  --accent:#d6a84e; --accent-ink:#0f1012; --accent-soft:#2a2418;
+  --warn:#ec8b3f; --warn-bg:#2b1f12; --ok:#5cc795; --ok-bg:#12271d;
+  --high:#e5534b; --high-bg:#2a1716; --med:#ec8b3f; --med-bg:#2b1f12; --low:#c2bdb2; --low-bg:#23262b;
+  --lcd:#0a0b0c; --lcd-ink:#f2efe8; --lcd-dim:#8f8a80;
+  --f-display:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   --f-body:"IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
   --f-mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   --r:10px;
-  color-scheme:light;
+  color-scheme:dark;
 }
-@media (prefers-color-scheme: dark){:root{
-  --paper:#0D141B; --surface:#151F29; --sunk:#1B2733; --ink:#E2E9EF; --muted:#90A1B1; --line:#263543;
-  --accent:#73B4E9; --accent-ink:#071420; --accent-soft:#18324A;
-  --warn:#F2A660; --warn-bg:#2C1E10; --ok:#63C996; --ok-bg:#122A1F;
-  --high:#F28B8B; --high-bg:#341616; --med:#F2A660; --med-bg:#2C1E10; --low:#A9BCCC; --low-bg:#1E2B37;
-  --lcd:#070C11; --lcd-ink:#E9F1F7; --lcd-dim:#7D92A4; color-scheme:dark;
-}}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 img{max-width:100%}
@@ -36,7 +28,7 @@ button,input,textarea{font:inherit;color:inherit}
 .top{display:flex;align-items:center;justify-content:space-between;gap:12px 24px;padding-block:18px;border-bottom:1px solid var(--line);margin-bottom:32px}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink);min-width:0}
 .mark{width:32px;height:32px;flex:none}
-.brand span{font:700 24px/1 var(--f-display);letter-spacing:-.01em}
+.brand span{font:600 22px/1 var(--f-display);letter-spacing:-.01em}.brand small{font:500 11.5px/1 var(--f-mono);color:var(--muted);letter-spacing:.03em;margin-left:2px;white-space:nowrap}.mark{border-radius:7px}
 .nav{display:flex;gap:4px}
 .nav a{color:var(--muted);text-decoration:none;font-weight:500;font-size:14.5px;padding:6px 10px;border-radius:6px}
 .nav a:hover,.nav a[aria-current="page"]{color:var(--ink);background:var(--sunk)}
@@ -63,7 +55,7 @@ button,input,textarea{font:inherit;color:inherit}
 .loader{max-width:760px;margin:0 auto;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:8px}
 .tabs{display:flex;gap:4px;padding:4px;background:var(--sunk);border-radius:10px;margin-bottom:8px}
 .tabs button{flex:1;border:0;background:transparent;border-radius:7px;padding:9px 12px;font-weight:600;font-size:14px;color:var(--muted);cursor:pointer}
-.tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px #0000001a}
+.tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
 .drop{display:grid;place-items:center;text-align:center;gap:6px;min-height:260px;border:2px dashed var(--line);border-radius:10px;padding:32px 20px;cursor:pointer}
 .drop:hover,.drop.drag{border-color:var(--accent);background:var(--accent-soft)}
 .drop svg{width:44px;height:44px;color:var(--accent)}
@@ -203,3 +195,4 @@ td.v{font-family:var(--f-mono);font-size:13px;overflow-wrap:anywhere;white-space
 .card h2{border:0;padding:0;margin:0 0 6px;font-size:19px}
 .card p{margin:0 0 8px}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+input[type=checkbox]{accent-color:var(--accent)}
