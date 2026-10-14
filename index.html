@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SnapEx — Photo metadata viewer, editor and remover</title>
+<meta name="description" content="SnapEx lets you view, edit and remove EXIF, GPS, IPTC and XMP metadata from photos. Everything runs in your browser; photos are never uploaded.">
+<meta name="theme-color" content="#1B5A8C">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Ccircle cx='15' cy='15' r='11' fill='none' stroke='%231B5A8C' stroke-width='3'/%3E%3Ccircle cx='15' cy='15' r='5' fill='%231B5A8C' opacity='.35'/%3E%3Cpath d='M23 23l9 9' stroke='%2313202C' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/full.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/piexifjs@1.0.6/piexif.js"></script>
+<style>
+/* Layout: a photo-lab bench. Left: the print under the loupe with its file facts and actions.
+   Right: a camera-LCD style exposure readout, privacy flags, then every tag grouped by where it lives in the file. */
+:root{
+  --paper:#EEF2F5; --surface:#FFFFFF; --sunk:#E3E9EE; --ink:#13202C; --muted:#566676; --line:#D2DAE2;
+  --accent:#1B5A8C; --accent-ink:#FFFFFF; --accent-soft:#DCEAF6;
+  --warn:#9A4A08; --warn-bg:#FCEEDD; --ok:#1C6E48; --ok-bg:#DFF2E8;
+  --lcd:#13202C; --lcd-ink:#E9F1F7; --lcd-dim:#8EA3B5;
+  --f-display:"Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --f-body:"IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0D141B; --surface:#151F29; --sunk:#1B2733; --ink:#E2E9EF; --muted:#90A1B1; --line:#263543;
+  --accent:#73B4E9; --accent-ink:#071420; --accent-soft:#18324A;
+  --warn:#F2A660; --warn-bg:#2C1E10; --ok:#63C996; --ok-bg:#122A1F;
+  --lcd:#070C11; --lcd-ink:#E9F1F7; --lcd-dim:#7D92A4; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --paper:#0D141B; --surface:#151F29; --sunk:#1B2733; --ink:#E2E9EF; --muted:#90A1B1; --line:#263543;
+  --accent:#73B4E9; --accent-ink:#071420; --accent-soft:#18324A;
+  --warn:#F2A660; --warn-bg:#2C1E10; --ok:#63C996; --ok-bg:#122A1F;
+  --lcd:#070C11; --lcd-ink:#E9F1F7; --lcd-dim:#7D92A4; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font:15px/1.5 var(--f-body);
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:0 48px}
+.wrap{max-width:1180px;margin:0 auto}
+button,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px;padding-block:22px 18px;border-bottom:1px solid var(--line);margin-bottom:24px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.mark{width:36px;height:36px;flex:none}
+.brand h1{font:700 26px/1 var(--f-display);letter-spacing:-.01em;margin:0}
+.brand p{margin:3px 0 0;color:var(--muted);font-size:13.5px}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 14px;font-weight:500;font-size:14px;cursor:pointer;line-height:1.2}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--warn)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn svg{width:16px;height:16px;flex:none}
+
+/* grid */
+.bench{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:860px){.bench{grid-template-columns:minmax(0,1fr)}}
+.side{display:flex;flex-direction:column;gap:16px;position:sticky;top:calc(env(safe-area-inset-top, 0px) + 16px)}
+@media (max-width:860px){.side{position:static}}
+.detail{display:flex;flex-direction:column;gap:18px;min-width:0}
+
+/* print */
+.print{position:relative;margin:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px;cursor:pointer}
+.print.drag{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.frame{aspect-ratio:4/3;max-width:100%;background:var(--sunk);border-radius:6px;display:grid;place-items:center;overflow:hidden}
+.frame img{width:100%;height:100%;object-fit:contain}
+.frame .noprev{color:var(--muted);font-size:13px;padding:16px;text-align:center}
+.print figcaption{display:flex;align-items:center;gap:8px;padding:10px 4px 2px;min-width:0}
+.fname{font:500 13.5px var(--f-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.tag{flex:none;font:600 10.5px/1 var(--f-body);letter-spacing:.08em;text-transform:uppercase;padding:4px 7px;border-radius:4px;background:var(--accent-soft);color:var(--accent)}
+.hint{font-size:12.5px;color:var(--muted);padding:2px 4px 0}
+
+.facts{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);font-size:13.5px}
+.facts dt{color:var(--muted)}
+.facts dd{margin:0;font-family:var(--f-mono);font-variant-numeric:tabular-nums;text-align:right;min-width:0;overflow-wrap:anywhere}
+
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.actions .btn{flex:1 1 140px;justify-content:center}
+.note{font-size:13px;color:var(--muted);margin:0}
+.status{font-size:13.5px;padding:10px 12px;border-radius:8px;background:var(--ok-bg);color:var(--ok)}
+.status.warn{background:var(--warn-bg);color:var(--warn)}
+
+/* edit form */
+.editor{background:var(--surface);border:1px solid var(--accent);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px}
+.editor h2{margin:0;font:700 17px var(--f-display)}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.field input{border:1px solid var(--line);background:var(--paper);border-radius:6px;padding:7px 10px;font-family:var(--f-mono);font-size:13.5px;width:100%}
+.field input:invalid{border-color:var(--warn)}
+.check{display:flex;gap:8px;align-items:center;font-size:14px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:420px){.row2{grid-template-columns:1fr}}
+
+/* LCD readout */
+.lcd{background:var(--lcd);color:var(--lcd-ink);border-radius:14px;padding:18px 20px 16px}
+.lcd-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0}
+.stat{padding:2px 14px;border-left:1px solid #ffffff22;min-width:0}
+.stat:first-child{border-left:0;padding-left:0}
+.stat b{display:block;font:500 clamp(20px,3.4vw,32px)/1.1 var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat span{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--lcd-dim);margin-top:4px}
+@media (max-width:520px){.lcd-stats{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:14px}.stat:nth-child(3){border-left:0;padding-left:0}}
+.lcd-line{margin-top:16px;padding-top:12px;border-top:1px solid #ffffff22;display:flex;flex-wrap:wrap;gap:6px 22px;font-size:13.5px}
+.lcd-line div{min-width:0}
+.lcd-line em{font-style:normal;color:var(--lcd-dim);margin-right:6px}
+.lcd.empty .stat b{color:var(--lcd-dim)}
+
+/* flags */
+.flags{display:flex;flex-wrap:wrap;gap:8px}
+.flag{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500;padding:6px 11px;border-radius:999px;background:var(--warn-bg);color:var(--warn)}
+.flag.ok{background:var(--ok-bg);color:var(--ok)}
+.flag i{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+
+/* toolbar */
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.search{flex:1 1 220px;position:relative;min-width:0}
+.search input{width:100%;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px 8px 34px}
+.search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--muted)}
+.count{font:12.5px var(--f-mono);color:var(--muted)}
+
+/* groups */
+.group{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.group summary{list-style:none;cursor:pointer;display:flex;align-items:baseline;gap:10px;padding:13px 16px}
+.group summary::-webkit-details-marker{display:none}
+.group summary h3{margin:0;font:700 16px var(--f-display)}
+.group summary .src{font:12px var(--f-mono);color:var(--muted)}
+.group summary .n{margin-left:auto;font:12px var(--f-mono);color:var(--muted)}
+.group summary::after{content:"";width:8px;height:8px;border-right:1.5px solid var(--muted);border-bottom:1.5px solid var(--muted);transform:rotate(45deg) translateY(-3px);margin-left:4px}
+.group[open] summary::after{transform:rotate(-135deg) translateY(-1px)}
+.tbl{overflow-x:auto;border-top:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+td{padding:7px 16px;vertical-align:top;border-top:1px solid var(--line)}
+tr:first-child td{border-top:0}
+td.k{width:38%;color:var(--muted);overflow-wrap:anywhere}
+td.v{font-family:var(--f-mono);font-size:13px;overflow-wrap:anywhere;white-space:pre-wrap}
+td.v a{color:var(--accent)}
+.blank{padding:28px 20px;text-align:center;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:var(--r)}
+.blank strong{display:block;color:var(--ink);font:700 18px var(--f-display);margin-bottom:4px}
+
+/* drop overlay + toast */
+.overlay{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:color-mix(in srgb, var(--paper) 82%, transparent);backdrop-filter:blur(3px)}
+.overlay div{border:2px dashed var(--accent);border-radius:16px;padding:40px 48px;font:700 22px var(--f-display);color:var(--accent);background:var(--surface)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%);z-index:30;background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:8px;font-size:14px;max-width:calc(100% - 32px)}
+@media (prefers-reduced-motion: no-preference){.btn,.print{transition:border-color .15s, box-shadow .15s, filter .15s}}
+</style>
+
+<style>
+html{color-scheme:light}
+body{margin:0;padding-top:env(safe-area-inset-top,0px)}
+img{max-width:100%}
+[hidden]{display:none!important}
+.urlform{display:flex;gap:8px}
+.urlform input{flex:1;min-width:0;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;font-size:14px}
+.foot{max-width:1180px;margin:40px auto 0;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<header class="top wrap">
+  <div class="brand">
+    <svg class="mark" viewBox="0 0 36 36" aria-hidden="true"><circle cx="15" cy="15" r="11" fill="none" stroke="var(--accent)" stroke-width="3"/><circle cx="15" cy="15" r="5" fill="var(--accent)" opacity=".35"/><path d="M23 23l9 9" stroke="var(--ink)" stroke-width="4" stroke-linecap="round"/></svg>
+    <div>
+      <h1>SnapEx</h1>
+      <p>Read, edit and strip photo metadata. Your photos never leave this browser.</p>
+    </div>
+  </div>
+  <button class="btn primary" id="openBtn" type="button">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 11V2M4.5 5.5 8 2l3.5 3.5M2 10v3.5h12V10"/></svg>
+    Open photo
+  </button>
+  <input type="file" id="fileInput" accept="image/*,.heic,.heif,.tif,.tiff,.dng" hidden>
+</header>
+
+<main class="wrap bench">
+  <aside class="side">
+    <figure class="print" id="print" title="Click or drop a photo here">
+      <div class="frame" id="frame"><span class="noprev">Loading sample…</span></div>
+      <figcaption><span class="fname" id="fname">—</span><span class="tag" id="ftag" hidden></span></figcaption>
+      <div class="hint">Drop a photo here, click to browse, or paste one.</div>
+    </figure>
+
+    <form class="urlform" id="urlForm" novalidate>
+      <input id="urlInput" type="url" placeholder="Or paste an image URL" aria-label="Image URL">
+      <button class="btn" type="submit">Load</button>
+    </form>
+
+    <dl class="facts" id="facts"></dl>
+
+    <div class="status" id="status" hidden></div>
+
+    <div class="actions" id="actions">
+      <button class="btn" id="editBtn" type="button">Edit metadata</button>
+      <button class="btn danger" id="stripBtn" type="button">Remove all metadata</button>
+      <button class="btn primary" id="saveBtn" type="button" hidden>Save copy</button>
+      <button class="btn" id="revertBtn" type="button" hidden>Back to original</button>
+    </div>
+    <p class="note" id="editNote" hidden></p>
+
+    <form class="editor" id="editor" hidden novalidate>
+      <h2>Edit metadata</h2>
+      <div class="row2">
+        <div class="field"><label for="e_make">Camera make</label><input id="e_make" maxlength="64"></div>
+        <div class="field"><label for="e_model">Camera model</label><input id="e_model" maxlength="64"></div>
+      </div>
+      <div class="field"><label for="e_lens">Lens</label><input id="e_lens" maxlength="96"></div>
+      <div class="field"><label for="e_date">Date taken (YYYY:MM:DD HH:MM:SS)</label><input id="e_date" pattern="^$|^\d{4}:\d{2}:\d{2} \d{2}:\d{2}:\d{2}$" placeholder="2026:03:14 06:42:10"></div>
+      <div class="field"><label for="e_artist">Artist</label><input id="e_artist" maxlength="96"></div>
+      <div class="field"><label for="e_copy">Copyright</label><input id="e_copy" maxlength="160"></div>
+      <div class="field"><label for="e_desc">Description</label><input id="e_desc" maxlength="300"></div>
+      <div class="field"><label for="e_soft">Software</label><input id="e_soft" maxlength="96"></div>
+      <label class="check"><input type="checkbox" id="e_nogps"> Remove GPS location</label>
+      <label class="check"><input type="checkbox" id="e_noserial"> Remove camera &amp; lens serial numbers</label>
+      <p class="note">EXIF text fields hold plain ASCII. Accented letters and other symbols are replaced with "?". Leave a field empty to delete it.</p>
+      <div class="actions">
+        <button class="btn primary" type="submit">Apply changes</button>
+        <button class="btn" type="button" id="cancelEdit">Cancel</button>
+      </div>
+    </form>
+  </aside>
+
+  <section class="detail">
+    <div class="lcd" id="lcd" aria-label="Exposure summary">
+      <div class="lcd-stats">
+        <div class="stat"><b id="r_shutter">—</b><span>Shutter</span></div>
+        <div class="stat"><b id="r_aperture">—</b><span>Aperture</span></div>
+        <div class="stat"><b id="r_iso">—</b><span>ISO</span></div>
+        <div class="stat"><b id="r_focal">—</b><span>Focal length</span></div>
+      </div>
+      <div class="lcd-line">
+        <div><em>Camera</em><span id="r_camera">—</span></div>
+        <div><em>Lens</em><span id="r_lens">—</span></div>
+        <div><em>Taken</em><span id="r_date">—</span></div>
+      </div>
+    </div>
+
+    <div class="flags" id="flags"></div>
+
+    <div class="toolbar">
+      <label class="search"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3.5 3.5"/></svg>
+        <input id="filter" type="search" placeholder="Filter tags, e.g. lens, GPS, date" aria-label="Filter tags"></label>
+      <span class="count" id="count"></span>
+      <button class="btn" id="copyJson" type="button">Copy JSON</button>
+      <button class="btn" id="saveJson" type="button" hidden>Save JSON</button>
+    </div>
+
+    <div id="groups"></div>
+  </section>
+</main>
+
+<div class="overlay" id="overlay" hidden><div>Drop to inspect</div></div>
+<footer class="foot">SnapEx reads and rewrites metadata entirely on your device. No photo is uploaded or stored.</footer>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const OPTS = {tiff:true, ifd0:true, exif:true, gps:true, interop:true, ifd1:false, iptc:true, xmp:true, icc:true, jfif:true, ihdr:true,
+  makerNote:false, userComment:true, mergeOutput:false, translateKeys:true, translateValues:true, reviveValues:true, sanitize:true};
+const GROUPS = [
+  ['ifd0','Image & camera','IFD0'], ['exif','Capture settings','EXIF'], ['gps','Location','GPS'],
+  ['iptc','Captions & rights','IPTC'], ['xmp','Extended metadata','XMP'], ['icc','Color profile','ICC'],
+  ['jfif','JPEG header','JFIF'], ['ihdr','PNG header','IHDR'], ['interop','Interoperability','Interop']
+];
+let st = {}; // current file state
+let original = null;
+let downloads = null;
+
+/* ---------- helpers ---------- */
+const toBin = u8 => { let s=''; for (let i=0;i<u8.length;i+=0x8000) s += String.fromCharCode.apply(null, u8.subarray(i,i+0x8000)); return s; };
+const fromBin = s => { const u=new Uint8Array(s.length); for (let i=0;i<s.length;i++) u[i]=s.charCodeAt(i)&255; return u; };
+const ascii = s => (s||'').replace(/[^\x20-\x7E]/g,'?');
+const fmtBytes = n => n<1024 ? n+' B' : n<1048576 ? (n/1024).toFixed(1)+' KB' : (n/1048576).toFixed(2)+' MB';
+const pad = n => String(n).padStart(2,'0');
+const fmtDate = d => d instanceof Date && !isNaN(d) ? `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}` : String(d);
+const round = (n,p=2) => Math.round(n*10**p)/10**p;
+let toastT;
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true, 3200); }
+
+function kindOf(u8){
+  if (u8[0]===0xFF && u8[1]===0xD8) return 'jpeg';
+  if (u8[0]===0x89 && u8[1]===0x50 && u8[2]===0x4E && u8[3]===0x47) return 'png';
+  const a = String.fromCharCode(...u8.subarray(0,12));
+  if (a.startsWith('RIFF') && a.slice(8,12)==='WEBP') return 'webp';
+  if (a.slice(4,8)==='ftyp') return /avif/.test(String.fromCharCode(...u8.subarray(8,24))) ? 'avif' : 'heic';
+  if (a.startsWith('II*\0') || a.startsWith('MM\0*')) return 'tiff';
+  if (a.startsWith('GIF8')) return 'gif';
+  return 'other';
+}
+const KIND_LABEL = {jpeg:'JPEG', png:'PNG', webp:'WebP', heic:'HEIC / HEIF', avif:'AVIF', tiff:'TIFF / RAW', gif:'GIF', other:'Unknown'};
+const EXT = {jpeg:'jpg', png:'png', webp:'webp'};
+
+function fmtVal(v){
+  if (v == null) return '';
+  if (v instanceof Date) return fmtDate(v);
+  if (v instanceof Uint8Array || ArrayBuffer.isView(v)) {
+    if (v.length <= 16) return Array.from(v).join(', ');
+    return `${v.length} bytes of binary data`;
+  }
+  if (Array.isArray(v)) return v.map(fmtVal).join(', ');
+  if (typeof v === 'object') { try { return JSON.stringify(v, jsonReplacer, 1).replace(/\n\s*/g,' '); } catch { return String(v); } }
+  if (typeof v === 'number') return String(round(v, 6));
+  return String(v);
+}
+function jsonReplacer(k, v){
+  if (v instanceof Uint8Array || (ArrayBuffer.isView(v) && !(v instanceof DataView))) return v.length<=16 ? Array.from(v) : `<${v.length} bytes>`;
+  if (typeof v === 'string' && v.length>2000) return v.slice(0,2000)+'…';
+  return v;
+}
+// exifr revives Date objects before the replacer sees them as strings; handle via toJSON override
+function toJsonText(){
+  if (!st.parsed) return '{}';
+  const clone = JSON.parse(JSON.stringify(st.parsed, function(k,v){
+    const raw = this[k]; if (raw instanceof Date) return fmtDate(raw); return jsonReplacer(k,v);
+  }));
+  if (st.gps) clone.coordinates = {latitude: st.gps.latitude, longitude: st.gps.longitude};
+  return JSON.stringify({file: st.name, format: KIND_LABEL[st.kind], size: st.size, metadata: clone}, null, 2);
+}
+
+/* ---------- loading ---------- */
+async function loadBlob(blob, name, opts={}){
+  const buf = await blob.arrayBuffer();
+  const u8 = new Uint8Array(buf);
+  const kind = kindOf(u8);
+  if (st.url) URL.revokeObjectURL(st.url);
+  st = {blob, name, kind, size: blob.size, u8, url: URL.createObjectURL(blob), sample: !!opts.sample, derived: opts.derived || null};
+  if (!opts.derived) original = {blob, name, sample: !!opts.sample};
+  try { st.parsed = await exifr.parse(buf.slice(0), OPTS); } catch { st.parsed = null; }
+  try { st.gps = await exifr.gps(buf.slice(0)); } catch { st.gps = null; }
+  if (st.gps && !isFinite(st.gps.latitude)) st.gps = null;
+  st.dims = await imageDims(st.url);
+  $('#editor').hidden = true;
+  render();
+}
+function imageDims(url){
+  return new Promise(res => { const im = new Image(); im.onload = () => res([im.naturalWidth, im.naturalHeight]); im.onerror = () => res(null); im.src = url; });
+}
+async function openFile(f){
+  if (!f) return;
+  if (f.type && !f.type.startsWith('image/') && !/\.(heic|heif|tiff?|dng|cr2|nef|arw)$/i.test(f.name)) { toast('That file is not an image. Choose a JPEG, PNG, WebP, HEIC or TIFF.'); return; }
+  setStatus(null);
+  await loadBlob(f, f.name);
+}
+
+/* ---------- render ---------- */
+function render(){
+  const p = st.parsed || {};
+  const ifd0 = p.ifd0 || {}, ex = p.exif || {};
+  // print
+  const frame = $('#frame'); frame.textContent = '';
+  if (st.dims) { const im = document.createElement('img'); im.src = st.url; im.alt = 'Preview of ' + st.name; frame.append(im); }
+  else { const s = document.createElement('span'); s.className='noprev'; s.textContent = `This browser can't preview ${KIND_LABEL[st.kind]} files, but the metadata below was read in full.`; frame.append(s); }
+  $('#fname').textContent = st.name;
+  const tag = $('#ftag');
+  tag.hidden = !(st.sample || st.derived);
+  tag.textContent = st.derived ? (st.derived==='edited' ? 'Edited' : 'Cleaned') : 'Sample';
+
+  // facts
+  const w = st.dims?.[0] || ex.ExifImageWidth || ifd0.ImageWidth || p.ihdr?.ImageWidth;
+  const h = st.dims?.[1] || ex.ExifImageHeight || ifd0.ImageHeight || p.ihdr?.ImageHeight;
+  const facts = [['Format', KIND_LABEL[st.kind]], ['File size', fmtBytes(st.size)],
+    ['Dimensions', w&&h ? `${w} × ${h} px` : '—'], ['Resolution', w&&h ? round(w*h/1e6,1)+' MP' : '—'],
+    ['Tags found', String(countTags())]];
+  const dl = $('#facts'); dl.textContent='';
+  for (const [k,v] of facts){ const dt=document.createElement('dt'); dt.textContent=k; const dd=document.createElement('dd'); dd.textContent=v; dl.append(dt,dd); }
+
+  // readout
+  const t = ex.ExposureTime;
+  $('#r_shutter').textContent = t ? (t>=1 ? `${round(t,1)} s` : `1/${Math.round(1/t)}`) : '—';
+  $('#r_aperture').textContent = ex.FNumber ? `f/${round(ex.FNumber,1)}` : '—';
+  const iso = ex.ISO ?? ex.ISOSpeedRatings ?? ex.PhotographicSensitivity;
+  $('#r_iso').textContent = iso ? (Array.isArray(iso)?iso[0]:iso) : '—';
+  const fl = ex.FocalLength, fl35 = ex.FocalLengthIn35mmFormat;
+  $('#r_focal').textContent = fl ? `${round(fl,1)} mm` : '—';
+  $('#r_focal').title = fl35 ? `${fl35} mm in 35 mm terms` : '';
+  const make = (ifd0.Make||'').trim(), model = (ifd0.Model||'').trim();
+  $('#r_camera').textContent = make||model ? (model.toLowerCase().startsWith(make.toLowerCase()) ? model : `${make} ${model}`.trim()) : '—';
+  $('#r_lens').textContent = ex.LensModel || ex.LensMake || '—';
+  const taken = ex.DateTimeOriginal || ex.CreateDate || ifd0.ModifyDate;
+  $('#r_date').textContent = taken ? fmtDate(taken) : '—';
+  $('#lcd').classList.toggle('empty', !t && !ex.FNumber && !iso && !fl);
+
+  // flags
+  const flags = $('#flags'); flags.textContent='';
+  const add = (txt, ok) => { const s=document.createElement('span'); s.className='flag'+(ok?' ok':''); const i=document.createElement('i'); s.append(i, txt); flags.append(s); };
+  if (st.gps) add(`Location embedded · ${round(st.gps.latitude,4)}, ${round(st.gps.longitude,4)}`);
+  if (ex.BodySerialNumber || ex.SerialNumber || ifd0.SerialNumber) add('Camera serial number present');
+  if (ex.LensSerialNumber) add('Lens serial number present');
+  if (ex.CameraOwnerName || ifd0.Artist) add('Owner or artist name present');
+  if (!st.gps && countTags()>0) add('No GPS location', true);
+  if (countTags()===0) add('No metadata found', true);
+
+  // actions
+  const canEdit = st.kind === 'jpeg' && typeof piexif !== 'undefined';
+  $('#editBtn').disabled = !canEdit;
+  const stripOK = ['jpeg','png','webp'].includes(st.kind) || (st.dims && st.kind!=='heic');
+  $('#stripBtn').disabled = !stripOK || countTags()===0;
+  const note = $('#editNote');
+  if (!canEdit) { note.hidden=false; note.textContent = stripOK ? `Editing works on JPEG files. You can still remove all metadata from this ${KIND_LABEL[st.kind]}.` : `Editing and cleaning work on JPEG, PNG and WebP. This ${KIND_LABEL[st.kind]} file can be inspected only.`; }
+  else note.hidden = true;
+  $('#saveBtn').hidden = !(st.derived && downloads);
+  $('#revertBtn').hidden = !st.derived;
+  $('#saveJson').hidden = !downloads;
+
+  renderGroups();
+}
+
+function countTags(){
+  const p = st.parsed; if (!p) return 0;
+  return GROUPS.reduce((n,[k]) => n + (p[k] ? Object.keys(p[k]).length : 0), 0);
+}
+
+function renderGroups(){
+  const host = $('#groups'); host.textContent='';
+  const p = st.parsed;
+  const q = $('#filter').value.trim().toLowerCase();
+  let shown = 0, total = 0;
+  if (!p || countTags()===0){
+    const d=document.createElement('div'); d.className='blank';
+    d.innerHTML = '<strong>No metadata in this file</strong>It carries no EXIF, GPS, IPTC, XMP or color-profile tags. Screenshots and images saved from social apps usually look like this.';
+    host.append(d); $('#count').textContent=''; return;
+  }
+  const keys = [...GROUPS.map(g=>g[0]), ...Object.keys(p).filter(k => !GROUPS.some(g=>g[0]===k) && p[k] && typeof p[k]==='object')];
+  for (const key of keys){
+    const data = p[key]; if (!data || typeof data!=='object') continue;
+    const meta = GROUPS.find(g=>g[0]===key) || [key, key.toUpperCase(), key];
+    const rows = [];
+    for (const [k,v] of Object.entries(data)){
+      const label = /^\d+$/.test(k) ? `Tag 0x${(+k).toString(16).padStart(4,'0')}` : k.replace(/([a-z])([A-Z])/g,'$1 $2');
+      const val = fmtVal(v);
+      total++;
+      if (q && !(label.toLowerCase().includes(q) || k.toLowerCase().includes(q) || val.toLowerCase().includes(q) || meta[1].toLowerCase().includes(q))) continue;
+      rows.push([label, val]);
+    }
+    if (key==='gps' && st.gps && (!q || 'map location coordinates openstreetmap'.includes(q) || rows.length)){
+      rows.unshift(['Coordinates', {lat:st.gps.latitude, lon:st.gps.longitude}]);
+    }
+    if (!rows.length) continue;
+    shown += rows.length;
+    const det = document.createElement('details'); det.className='group'; det.open = key!=='xmp' && key!=='icc' && key!=='interop' || !!q;
+    const sum = document.createElement('summary');
+    sum.innerHTML = `<h3></h3><span class="src"></span><span class="n"></span>`;
+    sum.querySelector('h3').textContent = meta[1]; sum.querySelector('.src').textContent = meta[2];
+    sum.querySelector('.n').textContent = rows.length + (rows.length===1?' tag':' tags');
+    const wrap = document.createElement('div'); wrap.className='tbl';
+    const tb = document.createElement('table'); const body = document.createElement('tbody');
+    for (const [k,v] of rows){
+      const tr=document.createElement('tr'); const a=document.createElement('td'); a.className='k'; a.textContent=k;
+      const b=document.createElement('td'); b.className='v';
+      if (typeof v === 'object'){
+        b.textContent = `${round(v.lat,6)}, ${round(v.lon,6)}  `;
+        const link=document.createElement('a'); link.target='_blank'; link.rel='noopener';
+        link.href=`https://www.openstreetmap.org/?mlat=${v.lat}&mlon=${v.lon}#map=15/${v.lat}/${v.lon}`; link.textContent='Open map ↗';
+        b.append(link);
+      } else b.textContent = v;
+      tr.append(a,b); body.append(tr);
+    }
+    tb.append(body); wrap.append(tb); det.append(sum, wrap); host.append(det);
+  }
+  $('#count').textContent = q ? `${shown} of ${total}` : `${total} tags`;
+  if (!shown){ const d=document.createElement('div'); d.className='blank'; d.innerHTML='<strong>No tags match</strong>Try a shorter word, such as "date" or "lens".'; host.append(d); }
+}
+
+function setStatus(msg, warn){
+  const s=$('#status'); if (!msg){ s.hidden=true; return; }
+  s.hidden=false; s.textContent=msg; s.classList.toggle('warn', !!warn);
+}
+
+/* ---------- editing (JPEG via piexif) ---------- */
+const I = () => piexif.ImageIFD, E = () => piexif.ExifIFD;
+function openEditor(){
+  let obj; try { obj = piexif.load(toBin(st.u8)); } catch { obj = {'0th':{},'Exif':{},'GPS':{}}; }
+  const z = obj['0th']||{}, ex = obj['Exif']||{};
+  const g = (o,t) => typeof o[t]==='string' ? o[t].replace(/\0+$/,'') : '';
+  $('#e_make').value = g(z, I().Make); $('#e_model').value = g(z, I().Model);
+  $('#e_lens').value = g(ex, E().LensModel); $('#e_date').value = g(ex, E().DateTimeOriginal);
+  $('#e_artist').value = g(z, I().Artist); $('#e_copy').value = g(z, I().Copyright);
+  $('#e_desc').value = g(z, I().ImageDescription); $('#e_soft').value = g(z, I().Software);
+  $('#e_nogps').checked = false; $('#e_nogps').disabled = !obj.GPS || !Object.keys(obj.GPS).length;
+  $('#e_noserial').checked = false; $('#e_noserial').disabled = !(ex[E().BodySerialNumber] || ex[E().LensSerialNumber]);
+  $('#editor').hidden = false; $('#e_make').focus();
+}
+async function applyEdits(ev){
+  ev.preventDefault();
+  const dateEl = $('#e_date');
+  if (!dateEl.checkValidity()){ dateEl.focus(); toast('Date taken must look like 2026:03:14 06:42:10, or be left empty.'); return; }
+  const bin = toBin(st.u8);
+  let obj; try { obj = piexif.load(bin); } catch { obj = {}; }
+  obj['0th'] = obj['0th']||{}; obj['Exif'] = obj['Exif']||{}; obj['GPS'] = obj['GPS']||{}; obj['Interop'] = obj['Interop']||{};
+  const set = (o, t, v) => { v = ascii(v.trim()); if (v) o[t] = v; else delete o[t]; };
+  set(obj['0th'], I().Make, $('#e_make').value); set(obj['0th'], I().Model, $('#e_model').value);
+  set(obj['Exif'], E().LensModel, $('#e_lens').value);
+  set(obj['Exif'], E().DateTimeOriginal, dateEl.value);
+  if (dateEl.value.trim()) obj['Exif'][E().DateTimeDigitized] = dateEl.value.trim();
+  set(obj['0th'], I().Artist, $('#e_artist').value); set(obj['0th'], I().Copyright, $('#e_copy').value);
+  set(obj['0th'], I().ImageDescription, $('#e_desc').value); set(obj['0th'], I().Software, $('#e_soft').value);
+  if ($('#e_nogps').checked) obj['GPS'] = {};
+  if ($('#e_noserial').checked){ delete obj['Exif'][E().BodySerialNumber]; delete obj['Exif'][E().LensSerialNumber]; }
+  // pointers are rebuilt by dump
+  delete obj['0th'][I().ExifTag]; delete obj['0th'][I().GPSTag]; delete obj['Exif'][E().InteroperabilityTag];
+  let dump;
+  try { dump = piexif.dump(obj); }
+  catch { try { obj['1st'] = {}; obj.thumbnail = null; delete obj['Exif'][E().MakerNote]; dump = piexif.dump(obj); }
+          catch { setStatus('This file has metadata the editor cannot rewrite. Use "Remove all metadata" instead.', true); return; } }
+  const out = fromBin(piexif.insert(dump, bin));
+  const base = st.name.replace(/\.[^.]+$/,'').replace(/-(edited|clean)$/,'');
+  await loadBlob(new Blob([out], {type:'image/jpeg'}), base + '-edited.jpg', {derived:'edited'});
+  setStatus(downloads ? 'Changes applied to a copy. Save it to keep it.' : 'Changes applied to a copy shown here.');
+}
+
+/* ---------- stripping ---------- */
+function concat(parts){ const n=parts.reduce((a,p)=>a+p.length,0); const o=new Uint8Array(n); let i=0; for(const p of parts){o.set(p,i);i+=p.length;} return o; }
+function stripJpeg(u8){
+  const out=[u8.subarray(0,2)]; let i=2;
+  while (i < u8.length){
+    if (u8[i]!==0xFF){ out.push(u8.subarray(i)); break; }
+    const m=u8[i+1];
+    if (m===0xFF){ i++; continue; }
+    if (m===0xDA){ out.push(u8.subarray(i)); break; }
+    if (m===0x01 || (m>=0xD0 && m<=0xD7)){ out.push(u8.subarray(i,i+2)); i+=2; continue; }
+    const len=(u8[i+2]<<8)|u8[i+3];
+    // drop APP1 (EXIF/XMP), APP13 (IPTC), comments and vendor APPn; keep APP0 (JFIF), APP2 (ICC color), APP14 (Adobe color)
+    const drop = m===0xE1 || m===0xFE || (m>=0xE3 && m<=0xEF && m!==0xEE);
+    if (!drop) out.push(u8.subarray(i, i+2+len));
+    i += 2+len;
+  }
+  return concat(out);
+}
+function stripPng(u8){
+  const keep = new Set(['PLTE','tRNS','gAMA','cHRM','sRGB','iCCP','sBIT','bKGD','pHYs','acTL','fcTL','fdAT','hIST','sPLT']);
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  const out=[u8.subarray(0,8)]; let i=8;
+  while (i+12 <= u8.length){
+    const len = dv.getUint32(i); const type = String.fromCharCode(u8[i+4],u8[i+5],u8[i+6],u8[i+7]);
+    const critical = type[0] >= 'A' && type[0] <= 'Z';
+    if (critical || keep.has(type)) out.push(u8.subarray(i, i+12+len));
+    i += 12+len; if (type==='IEND') break;
+  }
+  return concat(out);
+}
+async function reencode(type){
+  const im = new Image(); im.src = st.url; await im.decode();
+  const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
+  c.getContext('2d').drawImage(im,0,0);
+  return await new Promise(r => c.toBlob(r, type, 0.95));
+}
+async function strip(){
+  const before = st.size; let blob, ext = EXT[st.kind] || 'png', note = '';
+  try {
+    if (st.kind==='jpeg'){
+      let out = stripJpeg(st.u8);
+      let rawO = 1; try { rawO = piexif.load(toBin(st.u8))['0th'][piexif.ImageIFD.Orientation] || 1; } catch {}
+      if (rawO > 1){ out = fromBin(piexif.insert(piexif.dump({'0th':{[piexif.ImageIFD.Orientation]: rawO}}), toBin(out))); note = ' Only the rotation flag was kept, so the photo still displays upright.'; }
+      blob = new Blob([out], {type:'image/jpeg'});
+    } else if (st.kind==='png'){
+      blob = new Blob([stripPng(st.u8)], {type:'image/png'});
+    } else if (st.kind==='webp'){
+      blob = await reencode('image/webp'); note = ' WebP files are re-encoded at high quality to clear their metadata.';
+    } else {
+      blob = await reencode('image/png'); ext='png'; note = ' Saved as PNG, since this format cannot be rewritten in the browser.';
+    }
+  } catch { setStatus('This file could not be cleaned. It may be damaged or use an unsupported variant.', true); return; }
+  const base = st.name.replace(/\.[^.]+$/,'').replace(/-(edited|clean)$/,'');
+  await loadBlob(blob, `${base}-clean.${ext}`, {derived:'clean'});
+  const saved = before - blob.size;
+  setStatus(`Metadata removed${saved>0 ? `, ${fmtBytes(saved)} smaller` : ''}.${note}${downloads ? ' Save the copy to keep it.' : ''}`);
+}
+
+/* ---------- saving ---------- */
+async function saveFile(filename, data){
+  if (!downloads) return;
+  try { await downloads.save({filename, data}); toast('Downloaded ' + filename); }
+  catch (e) {
+    const c = e && e.code;
+    if (c==='declined') return;
+    if (c==='rate_limited') toast('A save prompt is already open.');
+    else toast('This view cannot save files.');
+  }
+}
+
+/* ---------- sample image ---------- */
+async function makeSample(){
+  const c = document.createElement('canvas'); c.width=1200; c.height=800; const x = c.getContext('2d');
+  const sky = x.createLinearGradient(0,0,0,520); sky.addColorStop(0,'#3d5f86'); sky.addColorStop(.55,'#e7a77a'); sky.addColorStop(1,'#f6d7a8');
+  x.fillStyle=sky; x.fillRect(0,0,1200,800);
+  x.fillStyle='#fff3d6'; x.beginPath(); x.arc(820,430,46,0,7); x.fill();
+  const hills = [['#6f7f86',430,.006,38],['#4f6a5e',500,.009,30],['#2f5040',580,.012,26],['#1f3a2c',670,.004,40]];
+  for (const [col,base,f,a] of hills){ x.fillStyle=col; x.beginPath(); x.moveTo(0,800);
+    for (let i=0;i<=1200;i+=10) x.lineTo(i, base + Math.sin(i*f + base)*a + Math.sin(i*f*3.1)*a*.35); x.lineTo(1200,800); x.fill(); }
+  x.strokeStyle='#ffffff18'; x.lineWidth=2;
+  for (let r=0;r<9;r++){ x.beginPath(); for (let i=0;i<=1200;i+=12) x.lineTo(i, 690 + r*13 + Math.sin(i*.02 + r)*4); x.stroke(); }
+  const jpg = await new Promise(r => c.toBlob(r,'image/jpeg',0.9));
+  const bin = toBin(new Uint8Array(await jpg.arrayBuffer()));
+  const I0 = piexif.ImageIFD, EX = piexif.ExifIFD, G = piexif.GPSIFD;
+  const exif = {
+    '0th': {[I0.Make]:'FUJIFILM', [I0.Model]:'X-T5', [I0.Orientation]:1, [I0.XResolution]:[72,1], [I0.YResolution]:[72,1], [I0.ResolutionUnit]:2,
+            [I0.Software]:'SnapEx sample', [I0.Artist]:'Sample Photographer', [I0.Copyright]:'(c) 2026 Sample Photographer', [I0.ImageDescription]:'Sunrise over tea estates'},
+    'Exif': {[EX.ExposureTime]:[1,250], [EX.FNumber]:[28,10], [EX.ExposureProgram]:3, [EX.ISOSpeedRatings]:160,
+             [EX.DateTimeOriginal]:'2026:03:14 06:42:10', [EX.DateTimeDigitized]:'2026:03:14 06:42:10',
+             [EX.ExposureBiasValue]:[-1,3], [EX.MeteringMode]:5, [EX.Flash]:16, [EX.FocalLength]:[23,1], [EX.FocalLengthIn35mmFilm]:35,
+             [EX.ColorSpace]:1, [EX.PixelXDimension]:1200, [EX.PixelYDimension]:800, [EX.WhiteBalance]:0,
+             [EX.LensMake]:'FUJIFILM', [EX.LensModel]:'XF23mmF1.4 R LM WR', [EX.BodySerialNumber]:'5CA01234'},
+    'GPS': {[G.GPSVersionID]:[2,2,0,0], [G.GPSLatitudeRef]:'N', [G.GPSLatitude]:[[10,1],[5,1],[2004,100]],
+            [G.GPSLongitudeRef]:'E', [G.GPSLongitude]:[[77,1],[3,1],[3420,100]], [G.GPSAltitudeRef]:0, [G.GPSAltitude]:[1600,1],
+            [G.GPSDateStamp]:'2026:03:14'}
+  };
+  const out = fromBin(piexif.insert(piexif.dump(exif), bin));
+  await loadBlob(new Blob([out],{type:'image/jpeg'}), 'tea-estate-sunrise.jpg', {sample:true});
+  setStatus('This is a sample photo with made-up camera and GPS data. Open your own to inspect it.');
+  $('#status').classList.add('warn');
+}
+
+/* ---------- wiring ---------- */
+$('#openBtn').onclick = () => $('#fileInput').click();
+$('#print').onclick = () => $('#fileInput').click();
+$('#fileInput').onchange = e => { openFile(e.target.files[0]); e.target.value=''; };
+$('#filter').oninput = renderGroups;
+$('#editBtn').onclick = openEditor;
+$('#cancelEdit').onclick = () => { $('#editor').hidden = true; };
+$('#editor').onsubmit = applyEdits;
+$('#stripBtn').onclick = strip;
+$('#revertBtn').onclick = async () => { if (original){ await loadBlob(original.blob, original.name, {sample: original.sample}); setStatus(null); } };
+$('#saveBtn').onclick = () => saveFile(st.name, st.blob);
+$('#saveJson').onclick = () => saveFile(st.name.replace(/\.[^.]+$/,'') + '-metadata.json', toJsonText());
+$('#copyJson').onclick = () => {
+  const txt = toJsonText();
+  try { navigator.clipboard.writeText(txt).then(() => toast('Metadata copied as JSON'), () => toast(downloads ? 'Copy was blocked here. Use Save JSON instead.' : 'Copy was blocked in this view.')); }
+  catch { toast('Copy was blocked in this view.'); }
+};
+let dragDepth = 0;
+addEventListener('dragenter', e => { if ([...(e.dataTransfer?.types||[])].includes('Files')){ dragDepth++; $('#overlay').hidden=false; e.preventDefault(); } });
+addEventListener('dragover', e => e.preventDefault());
+addEventListener('dragleave', () => { if (--dragDepth<=0){ dragDepth=0; $('#overlay').hidden=true; } });
+addEventListener('drop', e => { e.preventDefault(); dragDepth=0; $('#overlay').hidden=true; const f = e.dataTransfer?.files?.[0]; if (f) openFile(f); });
+addEventListener('paste', e => { const f = [...(e.clipboardData?.files||[])].find(f => f.type.startsWith('image/')); if (f){ e.preventDefault(); openFile(f); } });
+
+downloads = { save: async ({filename, data}) => {
+  const blob = data instanceof Blob ? data : new Blob([data], {type: 'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+} };
+$('#urlForm').onsubmit = async e => {
+  e.preventDefault();
+  const u = $('#urlInput').value.trim();
+  if (!/^https?:\/\//i.test(u)) { toast('Enter a full image address starting with http:// or https://'); return; }
+  try {
+    const r = await fetch(u, {mode: 'cors'});
+    if (!r.ok) throw new Error(r.status);
+    const blob = await r.blob();
+    const name = decodeURIComponent(new URL(u).pathname.split('/').pop() || 'image') || 'image';
+    setStatus(null); await loadBlob(blob, name);
+  } catch { setStatus("That site doesn't allow other pages to read its images. Download the image, then drop it here.", true); }
+};
+
+if (typeof exifr === 'undefined' || typeof piexif === 'undefined'){
+  $('#frame').innerHTML = '<span class="noprev">The metadata reader could not load. Check your connection and reload the page.</span>';
+} else makeSample().catch(() => setStatus('The sample photo could not be built. Open your own photo to begin.', true));
+})();
+</script>
+</body>
+</html>
