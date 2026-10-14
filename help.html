@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Help — SnapEx</title>
+<meta name="description" content="How to open photos in SnapEx, read their metadata, edit it, check privacy risks, and remove metadata before sharing.">
+<meta name="theme-color" content="#1B5A8C">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top wrap">
+  <a class="brand" href="/" aria-label="SnapEx home">
+    <svg class="mark" viewBox="0 0 36 36" aria-hidden="true"><circle cx="15" cy="15" r="11" fill="none" stroke="var(--accent)" stroke-width="3"/><circle cx="15" cy="15" r="5" fill="var(--accent)" opacity=".35"/><path d="M23 23l9 9" stroke="var(--ink)" stroke-width="4" stroke-linecap="round"/></svg>
+    <span>SnapEx</span>
+  </a>
+  <nav class="nav"><a href="/help" aria-current="page">Help</a></nav>
+</header>
+
+<main class="wrap narrow doc">
+  <h1>Help and user guide</h1>
+  <p class="lede">Everything SnapEx can do, how to do it, and what to try when something doesn't work.</p>
+  <ul class="toc">
+    <li><a href="#start">Getting started</a></li>
+    <li><a href="#features">Features</a></li>
+    <li><a href="#trouble">Troubleshooting</a></li>
+    <li><a href="#privacy">Privacy and security</a></li>
+  </ul>
+
+  <h2 id="start">Getting started</h2>
+  <h3>Opening a photo</h3>
+  <p>There are four ways to get a photo into SnapEx:</p>
+  <ul>
+    <li><strong>Drag and drop</strong> a photo anywhere onto the page.</li>
+    <li><strong>Click the drop area</strong> on the home page to pick a file from your device. On a phone this opens your photo library.</li>
+    <li><strong>Paste</strong> an image you've copied, with Ctrl+V or ⌘V.</li>
+    <li><strong>Load from URL</strong>: switch to that tab and enter the full address of an image.</li>
+  </ul>
+  <p>To explore without a photo of your own, choose <em>Try a sample photo</em>. It comes with made-up camera details and a GPS location so you can see every panel.</p>
+
+  <h2 id="features">Features</h2>
+  <h3>Metadata viewer</h3>
+  <p>The panel at the top reads like a camera's info screen: shutter speed, aperture, ISO, focal length, camera, lens and the time the photo was taken. Below it, every tag in the file is listed and grouped by where it is stored: Image &amp; camera, Capture settings, Location, Captions &amp; rights (IPTC), Extended metadata (XMP) and Color profile (ICC). Use the filter box to find a tag by name or value, such as <code>lens</code> or <code>2024</code>.</p>
+
+  <h3>Editing metadata</h3>
+  <ol>
+    <li>Open a JPEG and choose <strong>Edit metadata</strong>.</li>
+    <li>Change the camera make or model, lens, date taken, artist, copyright, description or software. Leave a field empty to delete it.</li>
+    <li>Tick <em>Remove GPS location</em> or <em>Remove camera and lens serial numbers</em> to drop those details.</li>
+    <li>Choose <strong>Apply changes</strong>. SnapEx makes an edited copy and shows its metadata so you can check it.</li>
+    <li>Choose <strong>Download copy</strong> to save it. <em>Back to original</em> undoes everything.</li>
+  </ol>
+  <p>Dates use the EXIF format <code>YYYY:MM:DD HH:MM:SS</code>, for example <code>2026:03:14 06:42:10</code>. EXIF text fields only hold plain ASCII characters, so accented letters are replaced with "?".</p>
+
+  <h3>Location map</h3>
+  <p>When a photo has GPS coordinates, SnapEx plots them on an OpenStreetMap map and shows latitude, longitude and altitude. The map tiles are loaded from OpenStreetMap, which receives the rough area being viewed but never the photo itself.</p>
+
+  <h3>Embedded thumbnail</h3>
+  <p>Many cameras and phones store a small preview image inside the photo. SnapEx shows it so you can check that it matches. This matters because some editing apps crop or retouch the main image but leave the old thumbnail behind. For JPEG files you can download the thumbnail, rebuild it from the current photo, or remove it.</p>
+
+  <h3>Privacy check</h3>
+  <p>Each photo gets an overall rating and a list of what it reveals:</p>
+  <ul>
+    <li><strong>High</strong>: GPS location, which shows exactly where the photo was taken.</li>
+    <li><strong>Medium</strong>: serial numbers, owner or artist names, the exact date and time, unique image IDs and embedded thumbnails. These can identify you or link photos together.</li>
+    <li><strong>Low</strong>: camera and lens models and the software used. These are rarely sensitive on their own.</li>
+  </ul>
+
+  <h3>Removing metadata</h3>
+  <p><strong>Remove metadata</strong> clears EXIF, GPS, IPTC, XMP and comments in one step. JPEG and PNG files are cleaned without re-compressing the picture, so quality is unchanged. If the photo was taken sideways, SnapEx keeps only the rotation flag so it still displays upright.</p>
+  <p>Leave <em>Keep color profile when removing</em> ticked to keep the ICC color profile. A profile says nothing about you and keeps colors accurate, especially for wide-gamut photos from newer phones. Untick it for the smallest possible file. WebP files are re-encoded at high quality, because their metadata can't be removed in place.</p>
+
+  <h3>Exporting metadata</h3>
+  <p><strong>Copy JSON</strong> copies all tags to your clipboard and <strong>Download JSON</strong> saves them as a file, which is useful for records or for comparing photos.</p>
+
+  <h2 id="trouble">Troubleshooting</h2>
+  <h3>"No metadata in this file"</h3>
+  <p>Many images genuinely have none. Screenshots, images saved from social networks and messaging apps, and pictures exported "for web" are usually stripped before you get them. Try the original file straight from the camera or phone instead.</p>
+  <h3>The map doesn't appear</h3>
+  <p>The photo needs GPS data; check the Location group for coordinates. If they are there but the map is blank, an ad blocker or network filter may be blocking OpenStreetMap. The <em>Open in OpenStreetMap</em> link still works.</p>
+  <h3>Load from URL fails</h3>
+  <p>Many websites don't allow other sites to read their images directly. Save the image to your device and open it with Upload file instead.</p>
+  <h3>Edit metadata is greyed out</h3>
+  <p>Editing works on JPEG files only. You can still view metadata for every supported format, and remove it from PNG and WebP files.</p>
+  <h3>Large files are slow</h3>
+  <p>Photos over about 20 MB, especially RAW files, can take a few seconds to read on older phones. Close other tabs or use a computer for very large files.</p>
+  <h3>The preview says the format can't be shown</h3>
+  <p>Some browsers can't display HEIC or RAW images. SnapEx still reads all of their metadata; only the preview is missing.</p>
+
+  <h2 id="privacy">Privacy and security</h2>
+  <ul>
+    <li><strong>Processed on your device.</strong> Photos are read and rewritten in your browser and never sent anywhere.</li>
+    <li><strong>No accounts and no tracking.</strong> SnapEx uses no analytics, ads or tracking cookies.</li>
+    <li><strong>Open source.</strong> All the code is on <a href="https://github.com/AlexPhilip01/snapex" target="_blank" rel="noopener">GitHub</a> for anyone to check.</li>
+  </ul>
+  <p>Read the full <a href="/privacy">Privacy Policy</a> or the <a href="/faq">FAQ</a>.</p>
+</main>
+
+<footer class="foot wrap">
+  <span>© 2026 SnapEx</span>
+  <span class="sep">·</span><a href="/privacy">Privacy Policy</a>
+  <span class="sep">·</span><a href="/faq">FAQ</a>
+  <span class="sep">·</span><a href="/contact">Contact</a>
+</footer>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FAQ — SnapEx</title>
+<meta name="description" content="Answers about EXIF data, why it matters for privacy, whether SnapEx is safe, and which image formats it supports.">
+<meta name="theme-color" content="#1B5A8C">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top wrap">
+  <a class="brand" href="/" aria-label="SnapEx home">
+    <svg class="mark" viewBox="0 0 36 36" aria-hidden="true"><circle cx="15" cy="15" r="11" fill="none" stroke="var(--accent)" stroke-width="3"/><circle cx="15" cy="15" r="5" fill="var(--accent)" opacity=".35"/><path d="M23 23l9 9" stroke="var(--ink)" stroke-width="4" stroke-linecap="round"/></svg>
+    <span>SnapEx</span>
+  </a>
+  <nav class="nav"><a href="/help">Help</a></nav>
+</header>
+
+<main class="wrap narrow doc faq">
+  <h1>Frequently asked questions</h1>
+  <p class="lede">Quick answers about photo metadata and how SnapEx handles your files.</p>
+
+  <details open>
+    <summary>What is EXIF data?</summary>
+    <div class="ans">
+      <p>EXIF (Exchangeable Image File Format) is a standard way for cameras and phones to write details into each photo: the date and time, camera and lens, exposure settings and often the GPS location. Photos can also carry IPTC captions and credits, XMP data added by editing apps, and a color profile.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Why should I care about it?</summary>
+    <div class="ans">
+      <p>A photo can say more than you meant to share. GPS coordinates can lead to your home, school or workplace. Timestamps show your routine, and camera serial numbers can link photos you posted under different names.</p>
+      <p>Many social networks strip this data when you upload, but email, messaging attachments, cloud links, forums and marketplaces often keep it. Checking a photo before you share it takes a few seconds.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Is SnapEx safe to use?</summary>
+    <div class="ans">
+      <p>Yes. SnapEx reads and rewrites photos inside your browser. Your files are never uploaded, stored or seen by anyone else, and the site has no analytics or tracking. Once the page has loaded you can even disconnect from the internet and it keeps working; only the location map needs a connection.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Which image formats are supported?</summary>
+    <div class="ans">
+      <p>SnapEx can <strong>read</strong> metadata from JPEG, PNG, WebP, HEIC/HEIF, AVIF, TIFF and most camera RAW formats such as DNG, CR2, NEF and ARW.</p>
+      <p><strong>Editing</strong> works on JPEG. <strong>Removing</strong> metadata works on JPEG and PNG without any loss in quality, and on WebP by re-encoding at high quality. JPEG holds the most metadata, which is why most of the tools focus on it.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Will removing metadata lower the quality of my photo?</summary>
+    <div class="ans">
+      <p>Not for JPEG or PNG. SnapEx removes the metadata blocks from the file and leaves the image data untouched. WebP files are re-encoded at 95% quality, which is visually indistinguishable for most photos.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Why is my photo sideways after cleaning it in another tool?</summary>
+    <div class="ans">
+      <p>Phones often save photos sideways and use an EXIF "orientation" flag to rotate them on screen. Removing all EXIF also removes that flag. SnapEx keeps just the orientation flag when it's needed, so your photo stays upright and nothing personal is left.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Can I change the GPS location instead of removing it?</summary>
+    <div class="ans">
+      <p>Not at the moment. You can remove the location completely, which is the safest option for privacy.</p>
+    </div>
+  </details>
+
+  <p>Still stuck? Read the <a href="/help">Help guide</a> or <a href="/contact">get in touch</a>.</p>
+</main>
+
+<footer class="foot wrap">
+  <span>© 2026 SnapEx</span>
+  <span class="sep">·</span><a href="/privacy">Privacy Policy</a>
+  <span class="sep">·</span><a href="/faq" aria-current="page">FAQ</a>
+  <span class="sep">·</span><a href="/contact">Contact</a>
+</footer>
+</body>
+</html>
